@@ -4,7 +4,7 @@ import ThemeScript from "../components/ThemeScript";
 import ToastStack from "../components/ToastStack";
 
 export const metadata = {
-  title: "BCS Staff",
+  title: "Sample Staff",
   description: "Business Control System - Staff Workspace",
 };
 
