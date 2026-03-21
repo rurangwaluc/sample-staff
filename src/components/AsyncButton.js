@@ -1,101 +1,80 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+function cx(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
 
-function CheckIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
+function baseClasses(size) {
+  const s = size === "sm" ? "h-10 px-3 text-xs" : "h-11 px-4 text-sm";
+
+  return cx(
+    "app-focus inline-flex items-center justify-center gap-2 rounded-2xl font-semibold",
+    "transition select-none whitespace-nowrap",
+    "disabled:opacity-60 disabled:cursor-not-allowed",
+    s,
   );
 }
 
-function SpinnerIcon() {
+function variantClasses(variant, state) {
+  if (state === "success") {
+    return "border border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200";
+  }
+
+  if (variant === "secondary") {
+    return "border border-[var(--border)] bg-[var(--card)] text-[var(--app-fg)] hover:bg-[var(--hover)]";
+  }
+
+  if (variant === "danger") {
+    return "bg-rose-600 text-white hover:bg-rose-700";
+  }
+
+  return "bg-[var(--app-fg)] text-[var(--app-bg)] hover:opacity-90";
+}
+
+function DotSpinner() {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="h-4 w-4 animate-spin"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12a9 9 0 1 1-6.2-8.56" />
-    </svg>
+    <span className="inline-flex items-center gap-1" aria-hidden="true">
+      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current opacity-70" />
+      <span
+        className="h-1.5 w-1.5 animate-bounce rounded-full bg-current opacity-70"
+        style={{ animationDelay: "120ms" }}
+      />
+      <span
+        className="h-1.5 w-1.5 animate-bounce rounded-full bg-current opacity-70"
+        style={{ animationDelay: "240ms" }}
+      />
+    </span>
   );
 }
 
 export default function AsyncButton({
-  idleText = "Submit",
-  loadingText = "Submitting...",
-  successText = "Done",
-  onClick,
-  className = "",
-  variant = "primary",
-  disabled = false,
   type = "button",
-  successDurationMs = 1200,
+  variant = "primary",
+  size = "md",
+  state = "idle",
+  text = "Create",
+  loadingText = "Creating…",
+  successText = "Created",
+  onClick,
+  disabled,
+  className = "",
 }) {
-  const [state, setState] = useState("idle");
-  const timerRef = useRef(null);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  async function handleClick(e) {
-    if (disabled || state === "loading") return;
-
-    try {
-      setState("loading");
-      await onClick?.(e);
-      setState("success");
-
-      timerRef.current = setTimeout(() => {
-        setState("idle");
-      }, successDurationMs);
-    } catch (error) {
-      setState("idle");
-      throw error;
-    }
-  }
-
-  const isPrimary = variant === "primary";
-
-  const baseClass =
-    "inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
-
-  const variantClass = isPrimary
-    ? "bg-stone-900 text-white hover:bg-stone-800 dark:bg-stone-100 dark:text-stone-950 dark:hover:bg-stone-200"
-    : "border border-stone-300 bg-white text-stone-800 hover:bg-stone-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-200 dark:hover:bg-stone-800";
-
-  let text = idleText;
-  if (state === "loading") text = loadingText;
-  if (state === "success") text = successText;
+  const isLoading = state === "loading";
+  const isSuccess = state === "success";
 
   return (
     <button
       type={type}
-      onClick={handleClick}
-      disabled={disabled || state === "loading"}
-      className={`${baseClass} ${variantClass} ${className}`}
+      onClick={onClick}
+      disabled={disabled || isLoading}
+      className={cx(
+        baseClasses(size),
+        variantClasses(variant, state),
+        className,
+      )}
     >
-      {state === "loading" ? <SpinnerIcon /> : null}
-      {state === "success" ? <CheckIcon /> : null}
-      <span>{text}</span>
+      {isLoading ? <DotSpinner /> : null}
+      <span>{isSuccess ? successText : isLoading ? loadingText : text}</span>
     </button>
   );
 }

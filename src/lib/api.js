@@ -1,48 +1,57 @@
-function normalizeBase(v) {
-  const s = String(v || "").trim();
-  if (!s) return "";
-  return s.endsWith("/") ? s.slice(0, -1) : s;
-}
+"use client";
 
-const BASE = normalizeBase(process.env.NEXT_PUBLIC_API_BASE);
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  "http://localhost:4000";
 
-async function readBodySafe(res) {
-  const ct = res.headers.get("content-type") || "";
-  if (ct.includes("application/json")) return res.json();
-  const text = await res.text();
-  return { error: text };
-}
-
-export async function apiFetch(path, opts = {}) {
-  if (!BASE) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_API_BASE in .env.local (restart dev server after setting it).",
-    );
+export async function apiFetch(path, options = {}) {
+  if (typeof path !== "string" || !path.trim()) {
+    throw new Error("apiFetch(path): path is required and must be a string");
   }
 
-  const url = `${BASE}${path}`;
+  const normalizedPath = path.trim();
+  const url = normalizedPath.startsWith("http")
+    ? normalizedPath
+    : `${API_BASE.replace(/\/$/, "")}${
+        normalizedPath.startsWith("/") ? "" : "/"
+      }${normalizedPath}`;
+
+  const opts = { ...options };
+  opts.headers = { ...(opts.headers || {}) };
+
   const hasBody = opts.body !== undefined && opts.body !== null;
 
-  // ✅ Only set JSON header if we actually send a JSON body
-  const headers = {
-    ...(opts.headers || {}),
-    ...(hasBody ? { "Content-Type": "application/json" } : {}),
-  };
+  if (hasBody) {
+    if (typeof opts.body === "object" && !(opts.body instanceof FormData)) {
+      opts.body = JSON.stringify(opts.body);
+    }
+
+    if (!(opts.body instanceof FormData)) {
+      opts.headers["Content-Type"] = "application/json";
+    }
+  } else if (opts.headers["Content-Type"] === "application/json") {
+    delete opts.headers["Content-Type"];
+  }
 
   const res = await fetch(url, {
-    method: opts.method || "GET",
-    headers,
+    ...opts,
     credentials: "include",
-    body: hasBody ? JSON.stringify(opts.body) : undefined,
   });
 
-  const data = await readBodySafe(res);
+  const text = await res.text();
+  let data = null;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text };
+  }
 
   if (!res.ok) {
-    const err = new Error(data?.error || `Request failed (${res.status})`);
+    const err = new Error((data && data.error) || "Request failed");
     err.status = res.status;
     err.data = data;
-    err.url = url;
     throw err;
   }
 
