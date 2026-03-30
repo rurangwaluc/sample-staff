@@ -174,11 +174,16 @@ function ProductQuickCard({
     ]
       .filter(Boolean)
       .join(" ") ||
-    "Unnamed product";
+    "Unnamed bag product";
 
   const sku = toStr(product?.sku);
-  const category =
-    toStr(product?.category) || toStr(product?.subcategory) || "Hardware";
+  const systemCategory =
+    toStr(product?.systemCategory || product?.system_category) ||
+    "OTHER_PP_BAG";
+  const businessLabel =
+    toStr(product?.category) ||
+    toStr(product?.subcategory) ||
+    "No business label";
 
   const qty = toNum(currentQty, 0);
 
@@ -186,7 +191,7 @@ function ProductQuickCard({
   const signed = adjDirection === "REMOVE" ? -effectiveAbsQty : effectiveAbsQty;
   const projected = qty + signed;
 
-  const unit = toStr(product?.stockUnit || product?.unit || "pcs");
+  const unit = toStr(product?.stockUnit || product?.unit || "BAG");
 
   return (
     <button
@@ -208,7 +213,8 @@ function ProductQuickCard({
           <div className="mt-2 flex flex-wrap gap-2">
             <InfoPill>#{product?.id ?? "—"}</InfoPill>
             {sku ? <InfoPill>SKU: {sku}</InfoPill> : null}
-            <InfoPill>{category}</InfoPill>
+            <InfoPill>{systemCategory}</InfoPill>
+            <InfoPill>{businessLabel}</InfoPill>
           </div>
         </div>
 
@@ -258,7 +264,7 @@ function RequestCard({ request }) {
   const productLabel =
     toStr(request?.productDisplayName) ||
     toStr(request?.productName) ||
-    "Unknown product";
+    "Unknown bag product";
 
   const reason =
     toStr(request?.reason) ||
@@ -424,7 +430,7 @@ export default function StoreKeeperAdjustmentsSection({
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.92fr_1.08fr]">
       <SectionShell
         title="Request stock correction"
-        hint="Store keepers do not change stock directly here. Send a controlled correction request for recount issues, damage, found items, or branch mistakes."
+        hint="Store keepers do not change stock directly here. Send a controlled bag stock correction request for recount issues, damage, found stock, or branch receiving mistakes."
       >
         <form onSubmit={createAdjustRequest} className="grid gap-4">
           <div className="rounded-3xl border border-[var(--border)] bg-[var(--card-2)] p-4">
@@ -438,8 +444,8 @@ export default function StoreKeeperAdjustmentsSection({
                 value={adjProductId ? `#${adjProductId}` : "None"}
                 sub={
                   toStr(
-                    selectedProduct?.name || selectedProduct?.displayName,
-                  ) || "Pick a product"
+                    selectedProduct?.displayName || selectedProduct?.name,
+                  ) || "Pick a bag product"
                 }
                 tone={adjProductId ? "success" : "default"}
               />
@@ -447,7 +453,7 @@ export default function StoreKeeperAdjustmentsSection({
                 label="Current stock"
                 value={currentQty == null ? "—" : qtyText(currentQty)}
                 sub={toStr(
-                  selectedProduct?.stockUnit || selectedProduct?.unit || "pcs",
+                  selectedProduct?.stockUnit || selectedProduct?.unit || "BAG",
                 )}
               />
               <StatCard
@@ -522,13 +528,13 @@ export default function StoreKeeperAdjustmentsSection({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] app-muted">
-                  Product
+                  Bag product
                 </div>
                 <Select
                   value={adjProductId}
                   onChange={(e) => setAdjProductId?.(e.target.value)}
                 >
-                  <option value="">Select product…</option>
+                  <option value="">Select bag product…</option>
                   {productRows.map((p) => {
                     const displayName =
                       toStr(p?.displayName) ||
@@ -571,7 +577,7 @@ export default function StoreKeeperAdjustmentsSection({
                 <Input
                   type="number"
                   min="1"
-                  placeholder="Example: 3"
+                  placeholder="Example: 20"
                   value={adjQtyAbs}
                   onChange={(e) => setAdjQtyAbs?.(e.target.value)}
                 />
@@ -583,7 +589,7 @@ export default function StoreKeeperAdjustmentsSection({
                 </div>
                 <TextArea
                   rows={4}
-                  placeholder="Explain clearly: recount mismatch, damaged stock, broken pack, found stock, wrong branch receipt, return not captured…"
+                  placeholder="Explain clearly: recount mismatch, damaged bags, torn bags, found stock, wrong branch receipt, return not captured, bale opened with shortage…"
                   value={adjReason}
                   onChange={(e) => setAdjReason?.(e.target.value)}
                 />
@@ -615,7 +621,7 @@ export default function StoreKeeperAdjustmentsSection({
             </button>
 
             <div className="text-xs app-muted">
-              Approval is required before inventory changes.
+              Approval is required before bag stock changes.
             </div>
           </div>
         </form>
@@ -623,8 +629,8 @@ export default function StoreKeeperAdjustmentsSection({
 
       <div className="grid gap-4">
         <SectionShell
-          title="Quick product picker"
-          hint="Pick the exact quincaillerie item and review the requested stock effect before sending."
+          title="Quick bag picker"
+          hint="Pick the exact bag product and review the requested stock effect before sending."
         >
           <div className="grid gap-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -655,7 +661,7 @@ export default function StoreKeeperAdjustmentsSection({
 
             {topProducts.length === 0 ? (
               <div className="rounded-3xl border border-[var(--border)] bg-[var(--card-2)] p-6 text-sm app-muted">
-                No products available yet.
+                No bag products available yet.
               </div>
             ) : (
               <div className="grid gap-3">

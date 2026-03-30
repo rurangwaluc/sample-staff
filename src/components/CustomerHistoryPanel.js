@@ -32,19 +32,19 @@ function safeDate(v) {
 function Badge({ kind = "gray", children }) {
   const cls =
     kind === "green"
-      ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+      ? "border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success-fg)]"
       : kind === "amber"
-        ? "bg-amber-50 text-amber-900 border-amber-200"
+        ? "border-[var(--warn-border)] bg-[var(--warn-bg)] text-[var(--warn-fg)]"
         : kind === "red"
-          ? "bg-rose-50 text-rose-900 border-rose-200"
+          ? "border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-fg)]"
           : kind === "blue"
-            ? "bg-sky-50 text-sky-900 border-sky-200"
-            : "bg-slate-50 text-slate-800 border-slate-200";
+            ? "border-[var(--info-border)] bg-[var(--info-bg)] text-[var(--info-fg)]"
+            : "border-[var(--border)] bg-[var(--card-2)] text-[var(--app-fg)]";
 
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-xl border px-2.5 py-1 text-[11px] font-extrabold",
+        "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-[0.08em]",
         cls,
       )}
     >
@@ -57,44 +57,62 @@ function statusKind(status) {
   const s = String(status || "").toUpperCase();
   if (s.includes("CANCEL") || s.includes("VOID")) return "red";
   if (s.includes("REFUND")) return "red";
-  if (s.includes("FULFIL") || s.includes("COMPLET") || s.includes("PAID"))
+  if (s.includes("FULFIL") || s.includes("COMPLET") || s.includes("PAID")) {
     return "green";
-  if (s.includes("AWAIT") || s.includes("PEND") || s.includes("DRAFT"))
+  }
+  if (s.includes("AWAIT") || s.includes("PEND") || s.includes("DRAFT")) {
     return "amber";
+  }
   return "gray";
 }
 
 function Skeleton({ className = "" }) {
   return (
     <div
-      className={cx("animate-pulse rounded-xl bg-slate-200/70", className)}
+      className={cx(
+        "animate-pulse rounded-2xl bg-slate-200/70 dark:bg-slate-800/70",
+        className,
+      )}
     />
   );
 }
 
 function SectionCard({ title, hint, right, children }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-slate-200 flex items-start justify-between gap-3">
+    <section className="overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--card)] shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] p-4">
         <div className="min-w-0">
-          <div className="text-sm font-semibold text-slate-900">{title}</div>
-          {hint ? (
-            <div className="text-xs text-slate-600 mt-1">{hint}</div>
-          ) : null}
+          <div className="text-sm font-black text-[var(--app-fg)]">{title}</div>
+          {hint ? <div className="mt-1 text-xs app-muted">{hint}</div> : null}
         </div>
         {right ? <div className="shrink-0">{right}</div> : null}
       </div>
       <div className="p-4">{children}</div>
-    </div>
+    </section>
   );
 }
 
-function StatCard({ label, value, sub }) {
+function StatCard({ label, value, sub, tone = "neutral" }) {
+  const cls =
+    tone === "success"
+      ? "border-[var(--success-border)] bg-[var(--success-bg)]"
+      : tone === "warn"
+        ? "border-[var(--warn-border)] bg-[var(--warn-bg)]"
+        : tone === "danger"
+          ? "border-[var(--danger-border)] bg-[var(--danger-bg)]"
+          : tone === "info"
+            ? "border-[var(--info-border)] bg-[var(--info-bg)]"
+            : "border-[var(--border)] bg-[var(--card)]";
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="text-xs font-semibold text-slate-600">{label}</div>
-      <div className="mt-1 text-2xl font-extrabold text-slate-900">{value}</div>
-      {sub ? <div className="mt-1 text-xs text-slate-600">{sub}</div> : null}
+    <div className={cx("rounded-2xl border p-4", cls)}>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] app-muted">
+        {label}
+      </div>
+      <div className="mt-1 text-2xl font-black text-[var(--app-fg)]">
+        {value}
+      </div>
+      {sub ? <div className="mt-1 text-xs app-muted">{sub}</div> : null}
     </div>
   );
 }
@@ -102,8 +120,10 @@ function StatCard({ label, value, sub }) {
 function Row({ label, value }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <div className="text-xs font-semibold text-slate-600">{label}</div>
-      <div className="text-sm font-bold text-slate-900 text-right">{value}</div>
+      <div className="text-xs font-semibold app-muted">{label}</div>
+      <div className="text-right text-sm font-bold text-[var(--app-fg)]">
+        {value}
+      </div>
     </div>
   );
 }
@@ -112,7 +132,6 @@ function saleBalance(r) {
   const total = Number(r?.totalAmount || 0);
   const paid = Number(r?.paymentAmount || 0);
   const refunds = Number(r?.refundAmount || 0);
-  // simple view: what remains after payments + refunds
   const bal = total - paid - refunds;
   return Number.isFinite(bal) ? bal : 0;
 }
@@ -139,19 +158,21 @@ export default function CustomerHistoryPanel({ customerId }) {
       const data = await apiFetch(`/customers/${id}/history`, {
         method: "GET",
       });
+
       const list = data?.sales ?? data?.rows ?? [];
       const arr = Array.isArray(list) ? list : [];
 
-      // newest first (safe even if backend already sorts)
       arr.sort(
         (a, b) => new Date(b?.createdAt || 0) - new Date(a?.createdAt || 0),
       );
 
       setRows(arr);
       setTotals(data?.totals || null);
-
-      const firstSaleId = arr[0]?.id ? arr[0].id : null;
-      setSelectedSaleId(firstSaleId);
+      setSelectedSaleId((prev) => {
+        if (prev && arr.some((r) => Number(r?.id) === Number(prev)))
+          return prev;
+        return arr[0]?.id || null;
+      });
     } catch (e) {
       setRows([]);
       setTotals(null);
@@ -169,7 +190,7 @@ export default function CustomerHistoryPanel({ customerId }) {
   const selected = useMemo(() => {
     const id = Number(selectedSaleId);
     if (!Number.isFinite(id)) return null;
-    return (rows || []).find((r) => Number(r?.id) === id) || null;
+    return rows.find((r) => Number(r?.id) === id) || null;
   }, [rows, selectedSaleId]);
 
   async function onRefresh() {
@@ -180,7 +201,7 @@ export default function CustomerHistoryPanel({ customerId }) {
   }
 
   const totalsUi = useMemo(() => {
-    const salesCount = Number(totals?.salesCount ?? rows?.length ?? 0);
+    const salesCount = Number(totals?.salesCount ?? rows.length ?? 0);
     const salesTotal = Number(totals?.salesTotalAmount ?? 0);
     const paidTotal = Number(totals?.paymentsTotalAmount ?? 0);
     const refundsTotal = Number(totals?.refundsTotalAmount ?? 0);
@@ -199,7 +220,7 @@ export default function CustomerHistoryPanel({ customerId }) {
     <div className="grid gap-4">
       <SectionCard
         title="Customer history"
-        hint="Sales totals, payments, refunds. Use this for disputes and credit follow-up."
+        hint="Sales totals, payments, refunds, and sale-level internal communication."
         right={
           <AsyncButton
             variant="secondary"
@@ -212,13 +233,13 @@ export default function CustomerHistoryPanel({ customerId }) {
         }
       >
         {msg ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          <div className="rounded-2xl border border-[var(--danger-border)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-fg)]">
             {msg}
           </div>
         ) : null}
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-24 w-full" />
@@ -226,8 +247,12 @@ export default function CustomerHistoryPanel({ customerId }) {
             <Skeleton className="h-24 w-full" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            <StatCard label="Sales count" value={String(totalsUi.salesCount)} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <StatCard
+              label="Sales count"
+              value={String(totalsUi.salesCount)}
+              tone="info"
+            />
             <StatCard
               label="Sales total"
               value={money(totalsUi.salesTotal)}
@@ -237,31 +262,33 @@ export default function CustomerHistoryPanel({ customerId }) {
               label="Paid total"
               value={money(totalsUi.paidTotal)}
               sub="RWF"
+              tone="success"
             />
             <StatCard
               label="Refunds total"
               value={money(totalsUi.refundsTotal)}
               sub="RWF"
+              tone="danger"
             />
             <StatCard
               label="Balance"
               value={money(totalsUi.balanceTotal)}
               sub={totalsUi.balanceTotal > 0 ? "Unsettled" : "Clear"}
+              tone={totalsUi.balanceTotal > 0 ? "warn" : "success"}
             />
           </div>
         )}
       </SectionCard>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* LEFT: timeline */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.05fr_1fr]">
         <SectionCard
           title="Sales timeline"
-          hint="Select a sale to inspect details and add internal notes."
+          hint="Pick a sale. Internal communication opens automatically for that sale."
           right={
             <div className="flex items-center gap-2">
-              <Badge kind="blue">{rows?.length || 0} sale(s)</Badge>
+              <Badge kind="blue">{rows.length} sale(s)</Badge>
               {selected?.id ? (
-                <Badge kind="gray">Selected #{selected.id}</Badge>
+                <Badge kind="gray">Sale #{selected.id}</Badge>
               ) : null}
             </div>
           }
@@ -271,7 +298,7 @@ export default function CustomerHistoryPanel({ customerId }) {
               {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                  className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4"
                 >
                   <Skeleton className="h-4 w-48" />
                   <Skeleton className="mt-2 h-3 w-64" />
@@ -280,13 +307,12 @@ export default function CustomerHistoryPanel({ customerId }) {
               ))}
             </div>
           ) : rows.length === 0 ? (
-            <div className="text-sm text-slate-600">
+            <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--card-2)] p-6 text-sm app-muted">
               No history for this customer yet.
             </div>
           ) : (
             <>
-              {/* Mobile cards */}
-              <div className="grid gap-2 lg:hidden">
+              <div className="grid gap-2 xl:hidden">
                 {rows.map((r) => {
                   const active = Number(selectedSaleId) === Number(r?.id);
                   const bal = saleBalance(r);
@@ -297,16 +323,16 @@ export default function CustomerHistoryPanel({ customerId }) {
                       type="button"
                       onClick={() => setSelectedSaleId(r?.id)}
                       className={cx(
-                        "w-full text-left rounded-2xl border p-4 transition",
+                        "w-full rounded-2xl border p-4 text-left transition",
                         active
-                          ? "border-slate-400 bg-slate-50"
-                          : "border-slate-200 bg-white hover:bg-slate-50",
+                          ? "border-slate-900 bg-slate-50 dark:border-slate-100 dark:bg-slate-900"
+                          : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--border-strong)] hover:bg-[var(--card-2)]",
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <div className="text-sm font-extrabold text-slate-900">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="text-sm font-black text-[var(--app-fg)]">
                               Sale #{r?.id ?? "—"}
                             </div>
                             <Badge kind={statusKind(r?.status)}>
@@ -319,40 +345,43 @@ export default function CustomerHistoryPanel({ customerId }) {
                               <Badge kind="amber">Credit</Badge>
                             ) : null}
                           </div>
-                          <div className="mt-1 text-xs text-slate-600">
+                          <div className="mt-1 text-xs app-muted">
                             {safeDate(r?.createdAt)}
                           </div>
                         </div>
+
                         <div className="text-right">
-                          <div className="text-xs text-slate-600">Total</div>
-                          <div className="text-sm font-extrabold text-slate-900">
+                          <div className="text-xs app-muted">Total</div>
+                          <div className="text-sm font-black text-[var(--app-fg)]">
                             {money(r?.totalAmount)}
                           </div>
                         </div>
                       </div>
 
                       <div className="mt-3 grid grid-cols-3 gap-2">
-                        <div className="rounded-xl border border-slate-200 bg-white p-3">
-                          <div className="text-[11px] font-semibold text-slate-600">
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
+                          <div className="text-[11px] font-semibold app-muted">
                             Paid
                           </div>
-                          <div className="mt-1 text-sm font-bold text-slate-900">
+                          <div className="mt-1 text-sm font-bold text-[var(--app-fg)]">
                             {money(r?.paymentAmount)}
                           </div>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-white p-3">
-                          <div className="text-[11px] font-semibold text-slate-600">
+
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
+                          <div className="text-[11px] font-semibold app-muted">
                             Refunds
                           </div>
-                          <div className="mt-1 text-sm font-bold text-slate-900">
+                          <div className="mt-1 text-sm font-bold text-[var(--app-fg)]">
                             {money(r?.refundAmount)}
                           </div>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-white p-3">
-                          <div className="text-[11px] font-semibold text-slate-600">
+
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
+                          <div className="text-[11px] font-semibold app-muted">
                             Balance
                           </div>
-                          <div className="mt-1 text-sm font-bold text-slate-900">
+                          <div className="mt-1 text-sm font-bold text-[var(--app-fg)]">
                             {money(bal)}
                           </div>
                         </div>
@@ -362,33 +391,22 @@ export default function CustomerHistoryPanel({ customerId }) {
                 })}
               </div>
 
-              {/* Desktop: responsive grid (NO horizontal scroll) */}
-              <div className="hidden lg:block">
-                {/* Header */}
+              <div className="hidden xl:block">
                 <div
                   className={cx(
-                    "grid gap-2 text-[11px] font-semibold text-slate-600",
-                    // 3 cols on lg, 5 cols on xl, 6 cols on 2xl
-                    "lg:grid-cols-[90px_120px_1fr] xl:grid-cols-[90px_120px_1fr_1fr_1fr] 2xl:grid-cols-[90px_120px_1fr_1fr_1fr_180px]",
-                    "border-b border-slate-200 pb-2",
+                    "grid gap-2 border-b border-[var(--border)] pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] app-muted",
+                    "xl:grid-cols-[96px_130px_1fr_1fr_1fr_180px]",
                   )}
                 >
                   <div>Sale</div>
                   <div>Status</div>
-
-                  {/* Total always visible */}
                   <div className="text-right">Total</div>
-
-                  {/* These appear from xl */}
-                  <div className="hidden xl:block text-right">Paid</div>
-                  <div className="hidden xl:block text-right">Refunds</div>
-
-                  {/* Time appears only from 2xl */}
-                  <div className="hidden 2xl:block">Time</div>
+                  <div className="text-right">Paid</div>
+                  <div className="text-right">Refunds</div>
+                  <div>Time</div>
                 </div>
 
-                {/* Rows */}
-                <div className="mt-2 grid gap-1">
+                <div className="mt-2 grid gap-1.5">
                   {rows.map((r) => {
                     const active = Number(selectedSaleId) === Number(r?.id);
 
@@ -398,19 +416,14 @@ export default function CustomerHistoryPanel({ customerId }) {
                         type="button"
                         onClick={() => setSelectedSaleId(r?.id)}
                         className={cx(
-                          "w-full text-left rounded-xl border px-3 py-2 transition",
+                          "w-full rounded-2xl border px-3 py-3 text-left transition",
                           active
-                            ? "border-slate-400 bg-slate-50"
-                            : "border-slate-200 bg-white hover:bg-slate-50",
+                            ? "border-slate-900 bg-slate-50 dark:border-slate-100 dark:bg-slate-900"
+                            : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--border-strong)] hover:bg-[var(--card-2)]",
                         )}
                       >
-                        <div
-                          className={cx(
-                            "grid gap-2 items-center text-sm",
-                            "lg:grid-cols-[90px_120px_1fr] xl:grid-cols-[90px_120px_1fr_1fr_1fr] 2xl:grid-cols-[90px_120px_1fr_1fr_1fr_180px]",
-                          )}
-                        >
-                          <div className="font-extrabold text-slate-900">
+                        <div className="grid items-center gap-2 text-sm xl:grid-cols-[96px_130px_1fr_1fr_1fr_180px]">
+                          <div className="font-black text-[var(--app-fg)]">
                             #{r?.id ?? "—"}
                           </div>
 
@@ -420,26 +433,21 @@ export default function CustomerHistoryPanel({ customerId }) {
                             </Badge>
                           </div>
 
-                          <div className="text-right font-bold text-slate-900 tabular-nums">
+                          <div className="text-right font-bold tabular-nums text-[var(--app-fg)]">
                             {money(r?.totalAmount)}
                           </div>
 
-                          <div className="hidden xl:block text-right text-slate-700 tabular-nums">
+                          <div className="text-right tabular-nums text-[var(--app-fg)]">
                             {money(r?.paymentAmount)}
                           </div>
 
-                          <div className="hidden xl:block text-right text-slate-700 tabular-nums">
+                          <div className="text-right tabular-nums text-[var(--app-fg)]">
                             {money(r?.refundAmount)}
                           </div>
 
-                          <div className="hidden 2xl:block text-xs text-slate-600 truncate">
+                          <div className="truncate text-xs app-muted">
                             {safeDate(r?.createdAt)}
                           </div>
-                        </div>
-
-                        {/* On lg/xl (when Time column is hidden), show time as a small second line */}
-                        <div className="2xl:hidden mt-1 text-[11px] text-slate-600 truncate">
-                          {safeDate(r?.createdAt)}
                         </div>
                       </button>
                     );
@@ -450,20 +458,21 @@ export default function CustomerHistoryPanel({ customerId }) {
           )}
         </SectionCard>
 
-        {/* RIGHT: detail + internal notes */}
         <div className="grid gap-4">
           <SectionCard
             title="Selected sale detail"
-            hint="Use this for disputes, fraud checks, and credit follow-up."
+            hint="Use this for disputes, follow-up, refunds, and internal coordination."
           >
             {!selected ? (
-              <div className="text-sm text-slate-600">No sale selected.</div>
+              <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--card-2)] p-6 text-sm app-muted">
+                No sale selected.
+              </div>
             ) : (
               <div className="grid gap-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="text-sm font-extrabold text-slate-900">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="text-sm font-black text-[var(--app-fg)]">
                         Sale #{selected?.id ?? "—"}
                       </div>
                       <Badge kind={statusKind(selected?.status)}>
@@ -476,50 +485,40 @@ export default function CustomerHistoryPanel({ customerId }) {
                         <Badge kind="red">{selected.refundCount} refund</Badge>
                       ) : null}
                     </div>
-                    <div className="mt-1 text-xs text-slate-600">
+                    <div className="mt-1 text-xs app-muted">
                       {safeDate(selected?.createdAt)}
                     </div>
                   </div>
 
                   <div className="text-right">
-                    <div className="text-xs font-semibold text-slate-600">
+                    <div className="text-xs font-semibold app-muted">
                       Balance
                     </div>
-                    <div className="text-lg font-extrabold text-slate-900">
+                    <div className="text-lg font-black text-[var(--app-fg)]">
                       {money(saleBalance(selected))}
                     </div>
-                    <div className="text-[11px] text-slate-500">RWF</div>
+                    <div className="text-[11px] app-muted">RWF</div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                    <div className="text-[11px] font-semibold text-slate-600">
-                      Total
-                    </div>
-                    <div className="mt-1 text-sm font-extrabold text-slate-900">
-                      {money(selected?.totalAmount)}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                    <div className="text-[11px] font-semibold text-slate-600">
-                      Paid
-                    </div>
-                    <div className="mt-1 text-sm font-extrabold text-slate-900">
-                      {money(selected?.paymentAmount)}
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                    <div className="text-[11px] font-semibold text-slate-600">
-                      Refunds
-                    </div>
-                    <div className="mt-1 text-sm font-extrabold text-slate-900">
-                      {money(selected?.refundAmount)}
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <StatCard
+                    label="Total"
+                    value={money(selected?.totalAmount)}
+                  />
+                  <StatCard
+                    label="Paid"
+                    value={money(selected?.paymentAmount)}
+                    tone="success"
+                  />
+                  <StatCard
+                    label="Refunds"
+                    value={money(selected?.refundAmount)}
+                    tone="danger"
+                  />
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--card-2)] p-4">
                   <div className="grid gap-2">
                     <Row
                       label="Payment"
@@ -539,7 +538,9 @@ export default function CustomerHistoryPanel({ customerId }) {
                       label="Payment time"
                       value={safeDate(selected?.paymentCreatedAt)}
                     />
-                    <div className="h-px bg-slate-200 my-1" />
+
+                    <div className="my-1 h-px bg-[var(--border)]" />
+
                     <Row
                       label="Credit"
                       value={
@@ -552,7 +553,9 @@ export default function CustomerHistoryPanel({ customerId }) {
                       label="Credit amount"
                       value={money(selected?.creditAmount)}
                     />
-                    <div className="h-px bg-slate-200 my-1" />
+
+                    <div className="my-1 h-px bg-[var(--border)]" />
+
                     <Row
                       label="Refunds"
                       value={
@@ -569,8 +572,8 @@ export default function CustomerHistoryPanel({ customerId }) {
 
           {selected?.id ? (
             <MessagesThread
-              title="Internal notes for this sale"
-              subtitle="Document disputes, approvals, and issues."
+              title={`Internal communication • Sale #${selected.id}`}
+              subtitle="Staff-only audited thread for this sale. No entity-id knowledge required."
               entityType="sale"
               entityId={String(selected.id)}
               allowThreadPicker={false}

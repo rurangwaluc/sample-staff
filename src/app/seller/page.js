@@ -129,8 +129,8 @@ function TopSectionSwitcher({
             <span className="font-semibold text-[var(--app-fg)]">
               Seller rule:
             </span>{" "}
-            Create sales, generate customer documents, follow releases, then
-            finalize payment or submit credit request.
+            Build the bag sale, confirm customer details, follow stock release,
+            then finalize payment or submit credit request.
           </div>
         </div>
 
@@ -381,7 +381,10 @@ export default function SellerPage() {
         : data?.items || data?.rows || [];
       setProducts(Array.isArray(list) ? list : []);
     } catch (e) {
-      banner("danger", e?.data?.error || e?.message || "Cannot load products");
+      banner(
+        "danger",
+        e?.data?.error || e?.message || "Cannot load bag products",
+      );
       setProducts([]);
     } finally {
       setProductsLoading(false);
@@ -407,7 +410,7 @@ export default function SellerPage() {
       if (prevSt === "DRAFT" && nextSt === "FULFILLED") {
         notifySeller(
           "success",
-          `Store keeper released stock for Sale #${id}. You can now mark paid or request credit.`,
+          `Store keeper released bag stock for Sale #${id}. You can now mark paid or request credit.`,
           {
             title: "Sale released",
             urgent: true,
@@ -530,8 +533,9 @@ export default function SellerPage() {
 
     return list.filter((p) => {
       const name = String(p?.name ?? "").toLowerCase();
+      const displayName = String(p?.displayName ?? "").toLowerCase();
       const sku = String(p?.sku ?? "").toLowerCase();
-      return name.includes(q) || sku.includes(q);
+      return name.includes(q) || displayName.includes(q) || sku.includes(q);
     });
   }, [products, prodQ]);
 
@@ -634,7 +638,7 @@ export default function SellerPage() {
 
     return {
       productId,
-      productName: p?.name || "—",
+      productName: p?.displayName || p?.name || "—",
       sku: p?.sku || "—",
       sellingPrice: sp,
       maxDiscountPercent: md,
@@ -644,6 +648,7 @@ export default function SellerPage() {
       discountAmount: 0,
       qtyOnHand,
       trackInventory,
+      stockUnit: p?.stockUnit ?? p?.stock_unit ?? p?.unit ?? "BAG",
     };
   }
 
@@ -655,7 +660,10 @@ export default function SellerPage() {
     const trackInventory = isInventoryTracked(product);
 
     if (trackInventory && qtyOnHand <= 0) {
-      pushToast("warn", `${product?.name || "Product"} is out of stock.`);
+      pushToast(
+        "warn",
+        `${product?.displayName || product?.name || "Bag product"} is out of stock.`,
+      );
       return;
     }
 
@@ -668,7 +676,7 @@ export default function SellerPage() {
         if (trackInventory && nextQty > qtyOnHand) {
           pushToast(
             "warn",
-            `${product?.name || "Product"} has only ${qtyOnHand} item(s) in stock.`,
+            `${product?.displayName || product?.name || "Bag product"} has only ${qtyOnHand} item(s) in stock.`,
           );
           return prev;
         }
@@ -680,6 +688,12 @@ export default function SellerPage() {
                 qty: nextQty,
                 qtyOnHand,
                 trackInventory,
+                stockUnit:
+                  product?.stockUnit ??
+                  product?.stock_unit ??
+                  product?.unit ??
+                  x.stockUnit ??
+                  "BAG",
               }
             : x,
         );
@@ -821,7 +835,7 @@ export default function SellerPage() {
     }
 
     if (saleCart.length === 0) {
-      pushToast("warn", "Cart is empty. Add products.");
+      pushToast("warn", "Cart is empty. Add bag products.");
       return;
     }
 

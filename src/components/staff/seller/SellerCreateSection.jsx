@@ -33,6 +33,12 @@ function hasValidSellingPrice(productOrItem) {
   return Number.isFinite(n) && n > 0;
 }
 
+function clampDiscountPercent(value, maxPct) {
+  const n = Number(value ?? 0);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n, Number(maxPct ?? 0) || 0);
+}
+
 function ProductAlertPill({ tone = "neutral", children }) {
   const toneCls =
     tone === "danger"
@@ -72,10 +78,10 @@ function ProductReadinessBanner({
 
       <div className="mt-1">
         {blockedByPrice && blockedByStock
-          ? `This product cannot be added because it has no selling price and is out of stock${tracked ? ` (available: ${availableQty})` : ""}.`
+          ? `This bag product cannot be added because it has no selling price and is out of stock${tracked ? ` (available: ${availableQty})` : ""}.`
           : blockedByPrice
-            ? "This product cannot be added because selling price is not set yet."
-            : `This product cannot be added because it is out of stock${tracked ? ` (available: ${availableQty})` : ""}.`}
+            ? "This bag product cannot be added because selling price is not set yet."
+            : `This bag product cannot be added because it is out of stock${tracked ? ` (available: ${availableQty})` : ""}.`}
       </div>
     </div>
   );
@@ -135,8 +141,8 @@ export default function SellerCreateSection({
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
       <SectionCard
-        title="Products"
-        hint="Search products quickly and add them to the current draft sale."
+        title="Bag products"
+        hint="Search bag products quickly and add them to the current draft sale."
         right={
           <AsyncButton
             variant="secondary"
@@ -151,7 +157,7 @@ export default function SellerCreateSection({
       >
         <div className="grid gap-4">
           <Input
-            placeholder="Search by product name or SKU"
+            placeholder="Search by bag product name or SKU"
             value={prodQ}
             onChange={(e) => {
               setProdQ(e.target.value);
@@ -168,7 +174,7 @@ export default function SellerCreateSection({
             </div>
           ) : safeFilteredProducts.length === 0 ? (
             <div className="rounded-3xl border border-[var(--border-strong)] bg-[var(--card-2)] p-5 text-sm app-muted shadow-sm">
-              No products found.
+              No bag products found.
             </div>
           ) : (
             <div className="grid gap-3">
@@ -197,6 +203,12 @@ export default function SellerCreateSection({
                       : "Ready"
                     : "Ready";
 
+                const systemCategory =
+                  p?.systemCategory || p?.system_category || "OTHER_PP_BAG";
+                const businessLabel = p?.category || p?.subcategory || "—";
+                const stockUnit =
+                  p?.stockUnit || p?.stock_unit || p?.unit || "BAG";
+
                 return (
                   <div
                     key={String(p?.id)}
@@ -209,7 +221,7 @@ export default function SellerCreateSection({
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <div className="truncate text-base font-black text-[var(--app-fg)]">
-                            {p?.name || "—"}
+                            {p?.displayName || p?.name || "—"}
                           </div>
 
                           {missingPrice ? (
@@ -278,19 +290,22 @@ export default function SellerCreateSection({
 
                           <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-sm">
                             <div className="text-[11px] font-semibold uppercase tracking-[0.08em] app-muted">
-                              Status
+                              Unit
                             </div>
-                            <div
-                              className={[
-                                "mt-1 text-sm font-black",
-                                addBlocked
-                                  ? "text-[var(--danger-fg)]"
-                                  : "text-[var(--success-fg)]",
-                              ].join(" ")}
-                            >
-                              {statusText}
+                            <div className="mt-1 text-sm font-black text-[var(--app-fg)]">
+                              {stockUnit}
                             </div>
                           </div>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <ProductAlertPill>{systemCategory}</ProductAlertPill>
+                          <ProductAlertPill>{businessLabel}</ProductAlertPill>
+                          <ProductAlertPill
+                            tone={addBlocked ? "warn" : "neutral"}
+                          >
+                            {statusText}
+                          </ProductAlertPill>
                         </div>
 
                         <ProductReadinessBanner
@@ -339,7 +354,7 @@ export default function SellerCreateSection({
             <div className="text-xs app-muted">
               Showing{" "}
               {Math.min(visibleProducts.length, safeFilteredProducts.length)} of{" "}
-              {safeFilteredProducts.length} product
+              {safeFilteredProducts.length} bag product
               {safeFilteredProducts.length === 1 ? "" : "s"}.
             </div>
           ) : null}
@@ -583,7 +598,7 @@ export default function SellerCreateSection({
             <div className="mt-3">
               <TextArea
                 rows={3}
-                placeholder="Optional note (delivery, special request, internal detail)"
+                placeholder="Optional note (delivery, bale split, special request, internal detail)"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
@@ -597,7 +612,8 @@ export default function SellerCreateSection({
                   Cart
                 </div>
                 <div className="mt-1 text-sm app-muted">
-                  Adjust quantity, price and discount before creating the draft.
+                  Adjust quantity and discount before creating the draft.
+                  Product price is locked to the official selling price.
                 </div>
               </div>
 
@@ -613,17 +629,31 @@ export default function SellerCreateSection({
 
             {saleCart.length === 0 ? (
               <div className="mt-4 rounded-3xl border border-dashed border-[var(--border-strong)] bg-[var(--card)] p-6 text-sm app-muted">
-                Cart is empty. Add products from the left panel.
+                Cart is empty. Add bag products from the left panel.
               </div>
             ) : (
               <div className="mt-4 grid gap-3">
                 {saleCart.map((it) => {
-                  const line = previewLineTotal(it);
                   const maxPct = Number(it.maxDiscountPercent ?? 0) || 0;
                   const availableQty = getAvailableQty(it);
                   const tracked = isInventoryTracked(it);
                   const enteredQty = Number(it.qty ?? 0) || 0;
                   const exceedsStock = tracked && enteredQty > availableQty;
+                  const lockedSellingPrice = Number(it.sellingPrice ?? 0) || 0;
+                  const safeDiscountPercent = clampDiscountPercent(
+                    it.discountPercent,
+                    maxPct,
+                  );
+
+                  const line = previewLineTotal({
+                    ...it,
+                    unitPrice: lockedSellingPrice,
+                    discountPercent: safeDiscountPercent,
+                    discountAmount: 0,
+                  });
+
+                  const stockUnit =
+                    it.stockUnit || it.stock_unit || it.unit || "BAG";
 
                   return (
                     <div
@@ -640,13 +670,15 @@ export default function SellerCreateSection({
                             <b className="text-[var(--app-fg)]">{it.sku}</b> •
                             Selling:{" "}
                             <b className="text-[var(--app-fg)]">
-                              {money(it.sellingPrice)} RWF
+                              {money(lockedSellingPrice)} RWF
                             </b>
                           </div>
                           <div className="mt-2 text-sm app-muted">
                             Stock available:{" "}
                             <b className="text-[var(--app-fg)]">
-                              {tracked ? availableQty : "Not tracked"}
+                              {tracked
+                                ? `${availableQty} ${stockUnit}`
+                                : "Not tracked"}
                             </b>
                           </div>
                         </div>
@@ -660,7 +692,7 @@ export default function SellerCreateSection({
                         </button>
                       </div>
 
-                      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
                         <div>
                           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] app-muted">
                             Qty
@@ -673,12 +705,15 @@ export default function SellerCreateSection({
                             onChange={(e) =>
                               updateCart(it.productId, {
                                 qty: Number(e.target.value || 1),
+                                unitPrice: lockedSellingPrice,
+                                discountPercent: safeDiscountPercent,
+                                discountAmount: 0,
                               })
                             }
                           />
                           {tracked ? (
                             <div className="mt-1 text-[11px] app-muted">
-                              Max allowed: {availableQty}
+                              Max allowed: {availableQty} {stockUnit}
                             </div>
                           ) : null}
                         </div>
@@ -689,17 +724,13 @@ export default function SellerCreateSection({
                           </div>
                           <Input
                             type="number"
-                            min="0"
-                            max={it.sellingPrice || undefined}
-                            value={String(it.unitPrice)}
-                            onChange={(e) =>
-                              updateCart(it.productId, {
-                                unitPrice: Number(e.target.value || 0),
-                              })
-                            }
+                            value={String(lockedSellingPrice)}
+                            readOnly
+                            disabled
+                            className="cursor-not-allowed opacity-80"
                           />
                           <div className="mt-1 text-[11px] app-muted">
-                            Must be ≤ selling price
+                            Locked to official selling price
                           </div>
                         </div>
 
@@ -711,32 +742,21 @@ export default function SellerCreateSection({
                             type="number"
                             min="0"
                             max={maxPct}
-                            value={String(it.discountPercent || 0)}
+                            value={String(safeDiscountPercent)}
                             onChange={(e) =>
                               updateCart(it.productId, {
-                                discountPercent: Number(e.target.value || 0),
+                                discountPercent: clampDiscountPercent(
+                                  e.target.value,
+                                  maxPct,
+                                ),
+                                unitPrice: lockedSellingPrice,
+                                discountAmount: 0,
                               })
                             }
                           />
                           <div className="mt-1 text-[11px] app-muted">
-                            Max {maxPct}%
+                            Max allowed by manager: {maxPct}%
                           </div>
-                        </div>
-
-                        <div>
-                          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] app-muted">
-                            Discount amount
-                          </div>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={String(it.discountAmount || 0)}
-                            onChange={(e) =>
-                              updateCart(it.productId, {
-                                discountAmount: Number(e.target.value || 0),
-                              })
-                            }
-                          />
                         </div>
                       </div>
 
@@ -773,7 +793,8 @@ export default function SellerCreateSection({
               disabled={saleCart.length === 0}
             />
             <div className="text-xs app-muted">
-              Store keeper must release stock before the sale can be finalized.
+              Store keeper must release bag stock before the sale can be
+              finalized.
             </div>
           </div>
         </form>

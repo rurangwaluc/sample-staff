@@ -86,7 +86,7 @@ export function locationLabel(me) {
   if (name && code) return `${name} (${code})`;
   if (name) return name;
   if (code) return code;
-  return "Store —";
+  return "Branch —";
 }
 
 export function nowLocalDatetimeValue() {
@@ -126,11 +126,11 @@ export function statusUi(statusRaw) {
   }
 
   if (st === "DRAFT") {
-    return { label: "WAITING RELEASE", tone: "neutral" };
+    return { label: "WAITING STOCK RELEASE", tone: "neutral" };
   }
 
   if (st === "FULFILLED") {
-    return { label: "READY", tone: "success" };
+    return { label: "READY FOR PAYMENT", tone: "success" };
   }
 
   if (st === "COMPLETED") {

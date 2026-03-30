@@ -6,43 +6,29 @@ function cx(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
-const CATEGORY_OPTIONS = [
-  "GENERAL_HARDWARE",
-  "FASTENERS",
-  "TOOLS",
-  "POWER_TOOLS",
-  "ELECTRICAL",
-  "PLUMBING",
-  "PAINT",
-  "BUILDING_MATERIALS",
-  "SAFETY",
-  "PPE",
-  "APPAREL",
-  "FOOTWEAR",
-  "RAIN_GEAR",
-  "ACCESSORIES",
-  "OTHER",
+const SYSTEM_CATEGORY_OPTIONS = [
+  "WOVEN_PP_BAG",
+  "LAMINATED_PP_BAG",
+  "BOPP_LAMINATED_BAG",
+  "LINER_PP_BAG",
+  "VALVE_PP_BAG",
+  "GUSSETED_PP_BAG",
+  "VENTILATED_PP_BAG",
+  "MESH_PP_BAG",
+  "FIBC_JUMBO_BAG",
+  "OTHER_PP_BAG",
 ];
 
 const UNIT_OPTIONS = [
-  "PIECE",
-  "PAIR",
-  "SET",
-  "BOX",
-  "PACK",
-  "BUNDLE",
-  "ROLL",
-  "METER",
-  "CENTIMETER",
-  "MILLIMETER",
-  "KILOGRAM",
-  "GRAM",
-  "LITER",
-  "MILLILITER",
-  "SHEET",
   "BAG",
-  "CARTON",
+  "BALE",
+  "PIECE",
+  "BUNDLE",
+  "PACK",
   "DOZEN",
+  "CARTON",
+  "ROLL",
+  "KILOGRAM",
 ];
 
 function Skeleton({ className = "" }) {
@@ -230,7 +216,7 @@ export default function StoreKeeperInventorySection({
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.02fr_1.18fr]">
       <SectionCard
-        title="Add inventory item"
+        title="Add bag product"
         hint="Store keeper captures operational stock details only. No price fields are shown here."
         right={
           <AsyncButton
@@ -250,7 +236,7 @@ export default function StoreKeeperInventorySection({
         <form onSubmit={createProduct} className="grid gap-5">
           <div className="rounded-3xl border border-[var(--info-border)] bg-[var(--info-bg)] p-4">
             <div className="text-sm font-black text-[var(--info-fg)]">
-              Core product setup
+              Core bag setup
             </div>
             <div className="mt-1 text-sm text-[var(--info-fg)]/90">
               Fill the main 6 fields first. Everything below is optional support
@@ -259,9 +245,9 @@ export default function StoreKeeperInventorySection({
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="Product name" required>
+            <Field label="Bag product name" required>
               <Input
-                placeholder="Example: PVC Pipe 1/2 inch"
+                placeholder="Example: PP Woven Rice Bag 25KG"
                 value={pName}
                 onChange={(e) => setPName?.(e.target.value)}
               />
@@ -269,18 +255,22 @@ export default function StoreKeeperInventorySection({
 
             <Field label="SKU" required hint="Internal stock code">
               <Input
-                placeholder="Example: PVC-12MM-3M"
+                placeholder="Example: RICE-25-WOVEN-001"
                 value={pSku}
                 onChange={(e) => setPSku?.(e.target.value)}
               />
             </Field>
 
-            <Field label="Category" required>
+            <Field
+              label="System category"
+              required
+              hint="Machine classification for this bag type"
+            >
               <Select
-                value={pCategory || "GENERAL_HARDWARE"}
+                value={pCategory || "WOVEN_PP_BAG"}
                 onChange={(e) => setPCategory?.(e.target.value)}
               >
-                {CATEGORY_OPTIONS.map((option) => (
+                {SYSTEM_CATEGORY_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
@@ -290,7 +280,7 @@ export default function StoreKeeperInventorySection({
 
             <Field label="Stock unit" required>
               <Select
-                value={pStockUnit || pUnit || "PIECE"}
+                value={pStockUnit || pUnit || "BAG"}
                 onChange={(e) => {
                   setPStockUnit?.(e.target.value);
                   setPUnit?.(e.target.value);
@@ -334,10 +324,10 @@ export default function StoreKeeperInventorySection({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-black text-[var(--app-fg)]">
-                    Optional details
+                    Optional bag details
                   </div>
                   <div className="mt-1 text-sm text-[var(--muted)]">
-                    Add richer product information only when needed.
+                    Add richer bag information only when needed.
                   </div>
                 </div>
 
@@ -349,10 +339,14 @@ export default function StoreKeeperInventorySection({
 
             <div className="border-t border-[var(--border)] p-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field label="Subcategory">
+                <Field
+                  label="Business label"
+                  hint="Example: RICE, FLOUR, SUGAR, FEED EXPORT"
+                >
                   <Input
                     value={pSubcategory}
                     onChange={(e) => setPSubcategory?.(e.target.value)}
+                    placeholder="Example: RICE"
                   />
                 </Field>
 
@@ -360,6 +354,7 @@ export default function StoreKeeperInventorySection({
                   <Input
                     value={pBrand}
                     onChange={(e) => setPBrand?.(e.target.value)}
+                    placeholder="Example: IMIFUKA RW"
                   />
                 </Field>
 
@@ -374,6 +369,7 @@ export default function StoreKeeperInventorySection({
                   <Input
                     value={pSize}
                     onChange={(e) => setPSize?.(e.target.value)}
+                    placeholder="Example: 25KG"
                   />
                 </Field>
 
@@ -381,6 +377,7 @@ export default function StoreKeeperInventorySection({
                   <Input
                     value={pColor}
                     onChange={(e) => setPColor?.(e.target.value)}
+                    placeholder="Example: WHITE"
                   />
                 </Field>
 
@@ -388,6 +385,7 @@ export default function StoreKeeperInventorySection({
                   <Input
                     value={pMaterial}
                     onChange={(e) => setPMaterial?.(e.target.value)}
+                    placeholder="Example: POLYPROPYLENE"
                   />
                 </Field>
 
@@ -395,6 +393,7 @@ export default function StoreKeeperInventorySection({
                   <Input
                     value={pVariantSummary}
                     onChange={(e) => setPVariantSummary?.(e.target.value)}
+                    placeholder="Example: Standard woven rice bag"
                   />
                 </Field>
 
@@ -454,7 +453,7 @@ export default function StoreKeeperInventorySection({
                 <div className="md:col-span-2">
                   <Field label="Notes">
                     <TextArea
-                      placeholder="Storage note, rack note, handling instruction..."
+                      placeholder="Storage note, bale note, handling instruction..."
                       value={pNotes}
                       onChange={(e) => setPNotes?.(e.target.value)}
                     />
@@ -470,7 +469,7 @@ export default function StoreKeeperInventorySection({
               variant="primary"
               size="md"
               state={createProductBtn}
-              text="Create inventory item"
+              text="Create bag product"
               loadingText="Creating…"
               successText="Created"
             />
@@ -488,7 +487,7 @@ export default function StoreKeeperInventorySection({
       >
         <div className="grid gap-4">
           <Input
-            placeholder="Search by id, name, SKU, category, brand, barcode or model"
+            placeholder="Search by id, name, SKU, system category, business label, barcode or model"
             value={invQ}
             onChange={(e) => setInvQ?.(e.target.value)}
           />
@@ -502,7 +501,7 @@ export default function StoreKeeperInventorySection({
           ) : !Array.isArray(filteredInventory) ||
             filteredInventory.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-[var(--border-strong)] bg-[var(--card-2)] p-6 text-sm text-[var(--muted)]">
-              No inventory items found.
+              No bag products found.
             </div>
           ) : (
             <div className="grid gap-3">
@@ -513,7 +512,10 @@ export default function StoreKeeperInventorySection({
                 const name =
                   item?.displayName || item?.name || `Product #${id}`;
                 const sku = item?.sku || "—";
-                const category = item?.category || "—";
+                const systemCategory =
+                  item?.systemCategory || item?.system_category || "—";
+                const businessLabel =
+                  item?.category || item?.subcategory || "—";
                 const brand = item?.brand || "—";
                 const unit =
                   item?.stockUnit || item?.stock_unit || item?.unit || "—";
@@ -542,18 +544,27 @@ export default function StoreKeeperInventorySection({
                             <b className="text-[var(--app-fg)]">SKU:</b> {sku}
                           </div>
                           <div>
-                            <b className="text-[var(--app-fg)]">Category:</b>{" "}
-                            {category}
+                            <b className="text-[var(--app-fg)]">System:</b>{" "}
+                            {systemCategory}
+                          </div>
+                          <div>
+                            <b className="text-[var(--app-fg)]">
+                              Business label:
+                            </b>{" "}
+                            {businessLabel}
                           </div>
                           <div>
                             <b className="text-[var(--app-fg)]">Brand:</b>{" "}
                             {brand}
                           </div>
+                          <div>
+                            <b className="text-[var(--app-fg)]">Unit:</b> {unit}
+                          </div>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                        <MiniStat label="Unit" value={unit} />
+                        <MiniStat label="Stock unit" value={unit} />
                         <MiniStat
                           label="Reorder level"
                           value={Math.round(reorder).toLocaleString()}

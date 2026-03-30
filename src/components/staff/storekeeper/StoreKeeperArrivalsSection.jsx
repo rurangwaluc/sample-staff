@@ -136,13 +136,18 @@ function ProductQuickCard({ product, selected, onSelect }) {
     ]
       .filter(Boolean)
       .join(" ") ||
-    "Unnamed product";
+    "Unnamed bag product";
 
   const qty = toNum(product?.qtyOnHand ?? product?.qty_on_hand ?? 0);
   const sku = toStr(product?.sku);
-  const unit = toStr(product?.stockUnit || product?.unit || "pcs");
-  const category =
-    toStr(product?.category) || toStr(product?.subcategory) || "Hardware";
+  const unit = toStr(product?.stockUnit || product?.unit || "BAG");
+  const systemCategory =
+    toStr(product?.systemCategory || product?.system_category) ||
+    "OTHER_PP_BAG";
+  const businessLabel =
+    toStr(product?.category) ||
+    toStr(product?.subcategory) ||
+    "No business label";
 
   const stockTone = qty <= 0 ? "danger" : qty <= 5 ? "warn" : "success";
 
@@ -166,7 +171,8 @@ function ProductQuickCard({ product, selected, onSelect }) {
           <div className="mt-2 flex flex-wrap gap-2">
             <InfoPill>#{product?.id ?? "—"}</InfoPill>
             {sku ? <InfoPill>SKU: {sku}</InfoPill> : null}
-            <InfoPill tone="info">{category}</InfoPill>
+            <InfoPill tone="info">{systemCategory}</InfoPill>
+            <InfoPill>{businessLabel}</InfoPill>
           </div>
         </div>
 
@@ -224,7 +230,7 @@ function ArrivalChecklist({
   );
   const predictedQty = arrProductId && qty > 0 ? currentQty + qty : currentQty;
   const unit = toStr(
-    selectedProduct?.stockUnit || selectedProduct?.unit || "pcs",
+    selectedProduct?.stockUnit || selectedProduct?.unit || "BAG",
   );
 
   return (
@@ -238,8 +244,8 @@ function ArrivalChecklist({
           label="Selected product"
           value={arrProductId ? `#${arrProductId}` : "None"}
           sub={
-            toStr(selectedProduct?.name || selectedProduct?.displayName) ||
-            "Choose a product"
+            toStr(selectedProduct?.displayName || selectedProduct?.name) ||
+            "Choose a bag product"
           }
         />
         <StatCard
@@ -321,8 +327,8 @@ export default function StoreKeeperArrivalsSection({
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.92fr_1.08fr]">
       <SectionShell
-        title="Record stock arrival"
-        hint="Receive stock cleanly for one branch at a time, attach supplier proof, and keep hardware inventory traceable."
+        title="Record bag arrival"
+        hint="Receive bag stock cleanly for one branch at a time, attach supplier proof, and keep imifuka inventory traceable."
         right={
           <div className="flex flex-wrap gap-2">
             <AsyncButton
@@ -359,13 +365,13 @@ export default function StoreKeeperArrivalsSection({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] app-muted">
-                  Product
+                  Bag product
                 </div>
                 <Select
                   value={arrProductId}
                   onChange={(e) => setArrProductId?.(e.target.value)}
                 >
-                  <option value="">Select product…</option>
+                  <option value="">Select bag product…</option>
                   {mergedProducts.map((p) => {
                     const displayName =
                       toStr(p?.displayName) ||
@@ -396,7 +402,7 @@ export default function StoreKeeperArrivalsSection({
                 <Input
                   type="number"
                   min="1"
-                  placeholder="Example: 20"
+                  placeholder="Example: 500"
                   value={arrQty}
                   onChange={(e) => setArrQty?.(e.target.value)}
                 />
@@ -410,7 +416,7 @@ export default function StoreKeeperArrivalsSection({
                   value={toStr(
                     selectedProduct?.stockUnit ||
                       selectedProduct?.unit ||
-                      "pcs",
+                      "BAG",
                   )}
                   readOnly
                 />
@@ -422,7 +428,7 @@ export default function StoreKeeperArrivalsSection({
                 </div>
                 <TextArea
                   rows={3}
-                  placeholder="Invoice reference, supplier, delivery note, bundle details, quality observation…"
+                  placeholder="Invoice reference, supplier, delivery note, bale details, quality observation…"
                   value={arrNotes}
                   onChange={(e) => setArrNotes?.(e.target.value)}
                 />
@@ -437,7 +443,8 @@ export default function StoreKeeperArrivalsSection({
                   Documents
                 </div>
                 <div className="mt-1 text-sm app-muted">
-                  Upload invoice, delivery note, receipt, or arrival photos.
+                  Upload invoice, supplier delivery note, receipt, or arrival
+                  photos.
                 </div>
               </div>
 
@@ -529,15 +536,15 @@ export default function StoreKeeperArrivalsSection({
 
             <div className="text-xs app-muted">
               Saving an arrival should increase stock for the selected branch
-              product.
+              bag product.
             </div>
           </div>
         </form>
       </SectionShell>
 
       <SectionShell
-        title="Quick product picker"
-        hint="Choose the exact branch product before receiving stock. Built for fast operational picking."
+        title="Quick bag picker"
+        hint="Choose the exact branch bag product before receiving stock. Built for fast operational picking."
       >
         <div className="grid gap-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -550,7 +557,7 @@ export default function StoreKeeperArrivalsSection({
               label="Selected product"
               value={arrProductId ? `#${arrProductId}` : "None"}
               sub={
-                toStr(selectedProduct?.name || selectedProduct?.displayName) ||
+                toStr(selectedProduct?.displayName || selectedProduct?.name) ||
                 "Pick one below"
               }
               tone={arrProductId ? "success" : "default"}
@@ -561,7 +568,7 @@ export default function StoreKeeperArrivalsSection({
                 selectedProduct?.qtyOnHand ?? selectedProduct?.qty_on_hand ?? 0,
               )}
               sub={toStr(
-                selectedProduct?.stockUnit || selectedProduct?.unit || "pcs",
+                selectedProduct?.stockUnit || selectedProduct?.unit || "BAG",
               )}
             />
             <StatCard
@@ -581,7 +588,7 @@ export default function StoreKeeperArrivalsSection({
             </div>
           ) : topProducts.length === 0 ? (
             <div className="rounded-3xl border border-[var(--border)] bg-[var(--card-2)] p-6 text-sm app-muted">
-              No products available yet. Create products first, then record
+              No bag products available yet. Create products first, then record
               arrivals.
             </div>
           ) : (

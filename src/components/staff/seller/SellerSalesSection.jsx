@@ -133,7 +133,7 @@ function resolveActionMessage({ saleStatus, creditStatus }) {
   if (saleStatus === "DRAFT") {
     return {
       tone: "neutral",
-      text: "Waiting for store keeper to release stock before final action.",
+      text: "Waiting for store keeper to release bag stock before final action.",
     };
   }
 
@@ -154,7 +154,7 @@ function resolveActionMessage({ saleStatus, creditStatus }) {
   if (creditStatus === "APPROVED") {
     return {
       tone: "success",
-      text: "Credit is approved and ready for collection.",
+      text: "Credit is approved and ready for bag collection or delivery.",
     };
   }
 

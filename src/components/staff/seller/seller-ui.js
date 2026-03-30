@@ -277,8 +277,8 @@ export function CreditSummary({ sale }) {
       </div>
 
       <div className="mt-3 text-[11px] font-medium text-[var(--warn-fg)]/90">
-        Installments are not enabled yet because payments has a unique index per
-        sale.
+        Installments are not enabled yet because payments currently keeps one
+        payment record path per sale.
       </div>
     </div>
   );
