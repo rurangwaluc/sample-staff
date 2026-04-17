@@ -105,6 +105,51 @@ function toIsoEndOfDay(dateValue) {
   return d.toISOString();
 }
 
+function normalizeMoneyInt(value, fallback = 0) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.round(n));
+}
+
+function normalizePercent(value, fallback = 0) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(100, n));
+}
+
+function normalizeExtraCharge(value, fallback = 0) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.round(n));
+}
+
+function deriveCartPricing(itemLike = {}) {
+  const baseUnitPrice = normalizeMoneyInt(
+    itemLike?.baseUnitPrice ??
+      itemLike?.sellingPrice ??
+      itemLike?.unitPrice ??
+      0,
+  );
+  const extraChargePerUnit = normalizeExtraCharge(
+    itemLike?.extraChargePerUnit ?? 0,
+  );
+  const unitPrice = baseUnitPrice + extraChargePerUnit;
+
+  return {
+    baseUnitPrice,
+    extraChargePerUnit,
+    unitPrice,
+    priceAdjustmentType:
+      extraChargePerUnit > 0
+        ? String(itemLike?.priceAdjustmentType || "SELLER_UPLIFT").toUpperCase()
+        : null,
+    priceAdjustmentReason:
+      extraChargePerUnit > 0
+        ? String(itemLike?.priceAdjustmentReason || "")
+        : "",
+  };
+}
+
 function TopSectionSwitcher({
   title,
   me,
@@ -129,8 +174,8 @@ function TopSectionSwitcher({
             <span className="font-semibold text-[var(--app-fg)]">
               Seller rule:
             </span>{" "}
-            Build the bag sale, confirm customer details, follow stock release,
-            then finalize payment or submit credit request.
+            Create sales, generate customer documents, follow releases, then
+            finalize payment or submit credit request.
           </div>
         </div>
 
@@ -381,10 +426,7 @@ export default function SellerPage() {
         : data?.items || data?.rows || [];
       setProducts(Array.isArray(list) ? list : []);
     } catch (e) {
-      banner(
-        "danger",
-        e?.data?.error || e?.message || "Cannot load bag products",
-      );
+      banner("danger", e?.data?.error || e?.message || "Cannot load products");
       setProducts([]);
     } finally {
       setProductsLoading(false);
@@ -410,7 +452,7 @@ export default function SellerPage() {
       if (prevSt === "DRAFT" && nextSt === "FULFILLED") {
         notifySeller(
           "success",
-          `Store keeper released bag stock for Sale #${id}. You can now mark paid or request credit.`,
+          `Store keeper released stock for Sale #${id}. You can now mark paid or request credit.`,
           {
             title: "Sale released",
             urgent: true,
@@ -533,9 +575,8 @@ export default function SellerPage() {
 
     return list.filter((p) => {
       const name = String(p?.name ?? "").toLowerCase();
-      const displayName = String(p?.displayName ?? "").toLowerCase();
       const sku = String(p?.sku ?? "").toLowerCase();
-      return name.includes(q) || displayName.includes(q) || sku.includes(q);
+      return name.includes(q) || sku.includes(q);
     });
   }, [products, prodQ]);
 
@@ -638,17 +679,23 @@ export default function SellerPage() {
 
     return {
       productId,
-      productName: p?.displayName || p?.name || "—",
+      productName: p?.name || "—",
       sku: p?.sku || "—",
+
       sellingPrice: sp,
+      baseUnitPrice: sp,
+      extraChargePerUnit: 0,
+      unitPrice: sp,
+
+      priceAdjustmentType: null,
+      priceAdjustmentReason: "",
+
       maxDiscountPercent: md,
       qty: 1,
-      unitPrice: sp,
       discountPercent: 0,
       discountAmount: 0,
       qtyOnHand,
       trackInventory,
-      stockUnit: p?.stockUnit ?? p?.stock_unit ?? p?.unit ?? "BAG",
     };
   }
 
@@ -660,10 +707,7 @@ export default function SellerPage() {
     const trackInventory = isInventoryTracked(product);
 
     if (trackInventory && qtyOnHand <= 0) {
-      pushToast(
-        "warn",
-        `${product?.displayName || product?.name || "Bag product"} is out of stock.`,
-      );
+      pushToast("warn", `${product?.name || "Product"} is out of stock.`);
       return;
     }
 
@@ -676,7 +720,7 @@ export default function SellerPage() {
         if (trackInventory && nextQty > qtyOnHand) {
           pushToast(
             "warn",
-            `${product?.displayName || product?.name || "Bag product"} has only ${qtyOnHand} item(s) in stock.`,
+            `${product?.name || "Product"} has only ${qtyOnHand} item(s) in stock.`,
           );
           return prev;
         }
@@ -688,12 +732,6 @@ export default function SellerPage() {
                 qty: nextQty,
                 qtyOnHand,
                 trackInventory,
-                stockUnit:
-                  product?.stockUnit ??
-                  product?.stock_unit ??
-                  product?.unit ??
-                  x.stockUnit ??
-                  "BAG",
               }
             : x,
         );
@@ -708,22 +746,51 @@ export default function SellerPage() {
       prev.map((it) => {
         if (Number(it.productId) !== Number(productId)) return it;
 
-        const next = { ...it, ...patch };
-        const qtyOnHand = getAvailableQty(next);
-        const trackInventory = isInventoryTracked(next);
+        const merged = { ...it, ...patch };
 
-        let qty = Number(next.qty ?? 1) || 1;
-        if (qty < 1) qty = 1;
+        let qty = Number(merged.qty ?? 1);
+        if (!Number.isFinite(qty) || qty < 1) qty = 1;
+        qty = Math.round(qty);
+
+        const qtyOnHand = getAvailableQty(merged);
+        const trackInventory = isInventoryTracked(merged);
 
         if (trackInventory && qtyOnHand > 0 && qty > qtyOnHand) {
           qty = qtyOnHand;
         }
 
+        const baseUnitPrice = normalizeMoneyInt(
+          merged.baseUnitPrice ?? merged.sellingPrice ?? merged.unitPrice ?? 0,
+        );
+        const extraChargePerUnit = normalizeExtraCharge(
+          merged.extraChargePerUnit ?? 0,
+        );
+        const unitPrice = baseUnitPrice + extraChargePerUnit;
+
+        const discountPercent = normalizePercent(merged.discountPercent ?? 0);
+        const discountAmount = normalizeMoneyInt(merged.discountAmount ?? 0);
+
+        const hasUplift = extraChargePerUnit > 0;
+        const priceAdjustmentReason = hasUplift
+          ? String(merged.priceAdjustmentReason || "")
+          : "";
+        const priceAdjustmentType = hasUplift ? "SELLER_UPLIFT" : null;
+
         return {
-          ...next,
+          ...merged,
           qty,
           qtyOnHand,
           trackInventory,
+
+          baseUnitPrice,
+          extraChargePerUnit,
+          unitPrice,
+
+          discountPercent,
+          discountAmount,
+
+          priceAdjustmentType,
+          priceAdjustmentReason,
         };
       }),
     );
@@ -737,13 +804,13 @@ export default function SellerPage() {
 
   function previewLineTotal(it) {
     const qty = Math.max(1, toInt(it.qty));
-    const unitPrice = Math.max(0, toInt(it.unitPrice));
-    const base = qty * unitPrice;
+    const pricing = deriveCartPricing(it);
+    const base = qty * pricing.unitPrice;
 
-    const pct = Math.max(0, Math.min(100, Number(it.discountPercent) || 0));
+    const pct = normalizePercent(it.discountPercent ?? 0);
     const pctDisc = Math.round((base * pct) / 100);
 
-    const amtDisc = Math.max(0, Number(it.discountAmount) || 0);
+    const amtDisc = normalizeMoneyInt(it.discountAmount ?? 0);
     const disc = Math.min(base, pctDisc + amtDisc);
 
     return Math.max(0, base - disc);
@@ -835,7 +902,7 @@ export default function SellerPage() {
     }
 
     if (saleCart.length === 0) {
-      pushToast("warn", "Cart is empty. Add bag products.");
+      pushToast("warn", "Cart is empty. Add products.");
       return;
     }
 
@@ -856,12 +923,42 @@ export default function SellerPage() {
         return;
       }
 
-      const selling = toInt(it.sellingPrice);
-      const unit = toInt(it.unitPrice);
-      if (unit > selling) {
+      const baseUnitPrice = normalizeMoneyInt(
+        it.baseUnitPrice ?? it.sellingPrice ?? it.unitPrice ?? 0,
+      );
+      const extraChargePerUnit = normalizeExtraCharge(
+        it.extraChargePerUnit ?? 0,
+      );
+      const finalUnitPrice = normalizeMoneyInt(it.unitPrice ?? 0);
+
+      if (extraChargePerUnit < 0) {
         pushToast(
           "warn",
-          `Unit price above selling price for ${it.productName}.`,
+          `Extra charge cannot be negative for ${it.productName}.`,
+        );
+        return;
+      }
+
+      if (finalUnitPrice < baseUnitPrice) {
+        pushToast(
+          "warn",
+          `${it.productName}: final unit price cannot be below official selling price.`,
+        );
+        return;
+      }
+
+      if (finalUnitPrice !== baseUnitPrice + extraChargePerUnit) {
+        pushToast(
+          "warn",
+          `${it.productName}: final price does not match official price plus extra charge.`,
+        );
+        return;
+      }
+
+      if (extraChargePerUnit > 0 && !toStr(it.priceAdjustmentReason)) {
+        pushToast(
+          "warn",
+          `${it.productName}: reason is required when extra charge is added.`,
         );
         return;
       }
@@ -885,10 +982,19 @@ export default function SellerPage() {
       customerPhone: typedPhone ? typedPhone : null,
       note: toStr(note) ? toStr(note).slice(0, 200) : null,
       items: saleCart.map((it) => {
-        const out = { productId: Number(it.productId), qty: toInt(it.qty) };
+        const pricing = deriveCartPricing(it);
 
-        const up = Number(it.unitPrice);
-        if (Number.isFinite(up)) out.unitPrice = up;
+        const out = {
+          productId: Number(it.productId),
+          qty: toInt(it.qty),
+          unitPrice: pricing.unitPrice,
+          extraChargePerUnit: pricing.extraChargePerUnit,
+        };
+
+        if (pricing.extraChargePerUnit > 0) {
+          out.priceAdjustmentType = "SELLER_UPLIFT";
+          out.priceAdjustmentReason = toStr(it.priceAdjustmentReason);
+        }
 
         const dp = Number(it.discountPercent);
         if (Number.isFinite(dp) && dp > 0) out.discountPercent = dp;
